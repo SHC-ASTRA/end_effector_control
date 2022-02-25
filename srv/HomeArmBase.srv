@@ -3,4 +3,3 @@ bool home=1
 ---
 # Response Message
 bool success
-string status

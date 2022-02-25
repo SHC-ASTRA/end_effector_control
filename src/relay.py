@@ -28,13 +28,38 @@ class ArmRelay:
         
         self.cmd_rate_sub = rospy.Subscriber("/joint_rate_command", JointRateCommand, self.process_rate_cmd)
         
+        self.homing_service = rospy.Service("/home_arm_base", HomeArmBase, self.home_arm_base)
+        self.homing_block = False
+        self.homing_success = False
+
         self.topic_publisher_callback = {
             'status' : self.process_status,
             'feedback' : self.process_feedback,
             'response': self.process_status,
-            'error': self.process_status
+            'error': self.process_status,
+            'homing_status' : self.process_homing
         }
 
+
+    def home_arm_base(self, home_srv):
+        self.homing_block = True
+        self.homing_success = False
+
+        while self.homing_block:
+            while self.ser.in_waiting > 0:
+                message = self.ser.read_until('\n')
+                print(message)
+                self.process_message(message)
+        
+        return HomeArmBase(self.homing_success, self.homing_status)
+
+    def process_homing_status(self, status):
+        self.homing_block = False
+        
+        if status == "false":
+            self.homing_success = False
+        elif status == "true":
+            self.homing_success = True
 
     def process_rate_cmd(self, rate_cmd):
         self.ser.write(str(rate_cmd.axis) + ',' + str(rate_cmd.desiredRate) + "\n")
@@ -46,7 +71,7 @@ class ArmRelay:
         
         actuatorFeedback = ActuatorFeedback()
         
-                # parse input data into keys for reference
+        # parse input data into keys for reference
         args = data.split(',')
         results = {}
         for pair in args:
