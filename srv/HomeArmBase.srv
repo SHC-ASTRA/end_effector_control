@@ -1,5 +1,5 @@
 # Request Message
-bool home=true
+bool home=1
 ---
 # Response Message
 bool success
