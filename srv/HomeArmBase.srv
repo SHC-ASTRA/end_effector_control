@@ -1,0 +1,6 @@
+# Request Message
+bool home=true
+---
+# Response Message
+bool success
+string status
