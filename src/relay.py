@@ -4,6 +4,7 @@ import rospy
 import serial
 import time
 from arm_relay.msg import JointRateCommand, ActuatorFeedback
+from arm_relay.src import HomeArmBase
 from std_msgs import *
 
 class ArmRelay:
