@@ -57,8 +57,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
  add_service_files(
    FILES
-   HomeArmBase.srv
-   EnableActuators.srv
+   Home.srv
+   EnableServos.srv
  )
 
 ## Generate actions in the 'action' folder

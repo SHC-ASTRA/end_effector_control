@@ -21,11 +21,13 @@ class EndEffectorController:
         self.cmd_rate_sub = rospy.Subscriber("/joint_rate_command", JointRateCommand, self.process_rate_cmd)
 
         self.enable_service = rospy.Service("/enable_servos", EnableServos, self.enable_servos)
-        self.actuators_enabled = True
+        self.servos_enabled = True
         self.enable_pin = gpiozero.OutputDevice(pin=4,active_high=True,initial_value=False)
         time.sleep(1)
         self.enable_pin.on()
         time.sleep(1)
+
+        #print(self.servo_one.getStatus())
 
         CST_LSS_PORT = "/dev/ttyAMA0"
         CST_LSS_BAUD = lssc.LSS_DefaultBaud
@@ -37,8 +39,9 @@ class EndEffectorController:
 
         self.axis5 = 0.0
         self.axis6 = 0.0
+        self.axis7 = 0.0
 
-        self.homing_service = rospy.Service("/home_end_effector", HomeArmBase, self.home_end_effector)
+        self.homing_service = rospy.Service("/home_end_effector", Home, self.home_end_effector)
         self.homing_in_progress = False
         self.homing_success = False
 
@@ -48,6 +51,8 @@ class EndEffectorController:
             self.axis6 = rate_cmd.desiredRate
         elif rate_cmd.axis == 5: # yaw
             self.axis5 = rate_cmd.desiredRate
+        elif rate_cmd.axis == 7: # gripper
+            self.axis7 = rate_cmd.desiredRate
         else:
             return
 
@@ -55,6 +60,7 @@ class EndEffectorController:
         # s 3 = -yaw + roll
         self.servo_two.wheel(int(50*(self.axis6 + self.axis5)))
         self.servo_three.wheel(int(50*(self.axis6 - self.axis5)))
+        self.servo_one.wheel(int(10*self.axis7))
 
     def home_end_effector(self, home_srv):
         if not self.homing_in_progress and not self.homing_success:
@@ -72,15 +78,16 @@ class EndEffectorController:
             self.homing_success = True
 
     def enable_servos(self,enable_srv):        
-        if self.actuators_enabled and not enable_srv.enable:
+        if self.servos_enabled and not enable_srv.enable:
             self.enable_pin.off()
-            rospy.loginfo('Disabling Actuators')
-        elif not self.actuators_enabled and enable_srv.enable:
+            rospy.loginfo('Disabling Servos')
+        elif not self.servos_enabled and enable_srv.enable:
             self.enable_pin.on()
-            rospy.loginfo('Enabling Actuators')
+            rospy.loginfo('Enabling Servos')
 
-        self.actuators_enabled = self.enable_pin.value
-        return EnableActuatorsResponse(self.actuators_enabled)
+        self.servos_enabled = self.servo_one.getStatus() == '1'
+
+        return EnableServosResponse(self.servos_enabled)
         
     def process_status(self, data):
         self.status_pub.publish(str(data))
@@ -101,6 +108,8 @@ class EndEffectorController:
         
         self.feedback_pub.publish(actuatorFeedback)
 
+    def publish_feedback(self):
+        pass
     
     def run(self):
         rate = rospy.Rate(60)
