@@ -1,0 +1,5 @@
+# Request Message
+bool enable
+---
+# Response Message
+bool enabled

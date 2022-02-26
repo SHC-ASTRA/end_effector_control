@@ -3,8 +3,9 @@
 import rospy
 import serial
 import time
+import gpiozero
 from arm_relay.msg import JointRateCommand, ActuatorFeedback
-from arm_relay.srv import HomeArmBase, HomeArmBaseResponse
+from arm_relay.srv import HomeArmBase, HomeArmBaseResponse, EnableActuators, EnableActuatorsResponse
 from std_msgs import *
 
 class ArmRelay:
@@ -32,6 +33,10 @@ class ArmRelay:
         self.homing_in_progress = False
         self.homing_success = False
 
+        self.enable_service = rospy.Service("/enable_actuators", EnableActuators, self.enable_actuators)
+        self.actuators_enabled = False
+        self.enable_pin = gpiozero.OutputDevice(pin=4,active_high=True,initial_value=False)
+
         self.topic_publisher_callback = {
             'status' : self.process_status,
             'feedback' : self.process_feedback,
@@ -55,6 +60,18 @@ class ArmRelay:
             self.homing_success = False
         elif status == "true":
             self.homing_success = True
+
+    def enable_actuators(self,enable_srv):
+        
+        if self.actuators_enabled and not enable_srv.enable:
+            self.enable_pin.off()
+            rospy.loginfo('Disabling Actuators')
+        elif not self.actuators_enabled and enable_srv.enable:
+            self.enable_pin.on()
+            rospy.loginfo('Enabling Actuators')
+
+        self.actuators_enabled = self.enable_pin.value
+        return EnableActuatorsResponse(self.actuators_enabled)
 
     def process_rate_cmd(self, rate_cmd):
         self.ser.write(str(rate_cmd.axis) + ',' + str(rate_cmd.desiredRate) + "\n")
