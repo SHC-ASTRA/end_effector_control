@@ -15,7 +15,7 @@ class ArmRelay:
         # Initialize serial port and connect to teensy microcontroller
         self.ser = None
         while (self.ser is None):
-            port = rospy.get_param('~arm_teensy_serial_port', '/dev/ttyACM0')
+            port = rospy.get_param('~arm_teensy_serial_port', '/dev/serial0')
             try:
                 self.ser = serial.Serial(port,115200)
             except:
