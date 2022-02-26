@@ -17,7 +17,7 @@ class ArmRelay:
         while (self.ser is None):
             port = rospy.get_param('~arm_teensy_serial_port', '/dev/ttyACM0')
             try:
-                self.ser = serial.Serial(port,9600)
+                self.ser = serial.Serial(port,115200)
             except:
                 rospy.loginfo("Unable to locate Teensy (@{0}), please ensure communications.".format(port))
                 time.sleep(3)
