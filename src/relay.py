@@ -56,9 +56,9 @@ class ArmRelay:
     def process_homing_status(self, status):
         self.homing_in_progress = False
         
-        if status == "false":
+        if "false" in status:
             self.homing_success = False
-        elif status == "true":
+        elif "true" in status:
             self.homing_success = True
 
     def enable_actuators(self,enable_srv):
