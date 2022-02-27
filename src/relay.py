@@ -14,18 +14,15 @@ class EndEffectorController:
     def __init__(self):
         rospy.loginfo('Setting up node.')
         rospy.init_node('end_effector_control')
-        
-        self.status_pub = rospy.Publisher('status', msg.String, queue_size=10)
-        self.feedback_pub = rospy.Publisher('feedback', ActuatorFeedback, queue_size=1)
-        
-        self.cmd_rate_sub = rospy.Subscriber("/joint_rate_command", JointRateCommand, self.process_rate_cmd)
+
+        self.yaw_pos = 0
+        self.roll_pos = 0
 
         self.enable_service = rospy.Service("/enable_servos", EnableServos, self.enable_servos)
-        self.servos_enabled = True
         self.enable_pin = gpiozero.OutputDevice(pin=4,active_high=True,initial_value=False)
         time.sleep(1)
         self.enable_pin.on()
-        time.sleep(1)
+        time.sleep(2)
 
         #print(self.servo_one.getStatus())
 
@@ -37,11 +34,29 @@ class EndEffectorController:
         self.servo_two = lss.LSS(2)
         self.servo_three = lss.LSS(3)
 
+        self.servos_enabled = True
+
+        self.servo_one.setColorLED(1)
+        self.servo_two.setColorLED(2)
+        self.servo_three.setColorLED(3)
+
+        self.servo_one.setMaxSpeed(100)
+        self.servo_two.setMaxSpeed(100)
+        self.servo_three.setMaxSpeed(100)
+
+        self.pos2off = float(self.servo_two.getPosition())/10.0
+        self.pos3off = float(self.servo_three.getPosition())/10.0
+
         self.axis5 = 0.0
         self.axis6 = 0.0
         self.axis7 = 0.0
 
-        self.homing_service = rospy.Service("/home_end_effector", Home, self.home_end_effector)
+        self.status_pub = rospy.Publisher('status', msg.String, queue_size=10)
+        self.feedback_pub = rospy.Publisher('feedback', ActuatorFeedback, queue_size=1)
+        
+        self.cmd_rate_sub = rospy.Subscriber("/joint_rate_command", JointRateCommand, self.process_rate_cmd)
+
+        self.homing_service = rospy.Service("home_end_effector", Home, self.home_end_effector)
         self.homing_in_progress = False
         self.homing_success = False
 
@@ -56,18 +71,18 @@ class EndEffectorController:
         else:
             return
 
-        # s 2 = yaw + roll
-        # s 3 = -yaw + roll
-        self.servo_two.wheel(int(50*(self.axis6 + self.axis5)))
-        self.servo_three.wheel(int(50*(self.axis6 - self.axis5)))
+        if (self.yaw_pos >= 45 and self.axis5 > 0) or (self.yaw_pos <= -45 and self.axis5 < 0):
+            self.axis5 = 0
+
+        # s 2 = yaw - roll
+        # s 3 = -yaw - roll
+        self.servo_two.wheel(int(10*(-self.axis6 + self.axis5)))
+        self.servo_three.wheel(int(10*(-self.axis6 - self.axis5)))
         self.servo_one.wheel(int(10*self.axis7))
 
     def home_end_effector(self, home_srv):
-        if not self.homing_in_progress and not self.homing_success:
-            self.ser.write('h 0\n')
-            self.homing_in_progress = True
-        
-        return HomeArmBaseResponse(self.homing_success)
+        rospy.loginfo('Homing not implemented')
+        return HomeResponse(False)
 
     def process_homing_status(self, status):
         self.homing_in_progress = False
@@ -92,28 +107,35 @@ class EndEffectorController:
     def process_status(self, data):
         self.status_pub.publish(str(data))
         
-    def process_feedback(self, data):        
+    def process_feedback(self, axis, angle, actualrate):        
         actuatorFeedback = ActuatorFeedback()
         
-        # parse input data into keys for reference
-        args = data.split(',')
-        results = {}
-        for pair in args:
-            name, value = pair.split('=')
-            results[name] = value
-            
-        actuatorFeedback.axis = int(results['x'])
-        actuatorFeedback.angle = float(results['a'])
-        actuatorFeedback.actualRate = float(results['r'])
+        actuatorFeedback.axis = int(axis)
+        actuatorFeedback.angle = float(angle)
+        actuatorFeedback.actualRate = float(actualrate)
         
         self.feedback_pub.publish(actuatorFeedback)
 
     def publish_feedback(self):
-        pass
+        try:
+            pos2 = float(self.servo_two.getPosition())/10.0 - self.pos2off
+            pos3 = float(self.servo_three.getPosition())/10.0 - self.pos3off
+
+            self.yaw_pos = (pos2/2.0 - pos3/2.0)
+            self.roll_pos = (-pos2/2.0 - pos3/2.0) / 3.0
+
+            #print(pos2,pos3,self.yaw_pos,self.roll_pos)
+
+            self.process_feedback(5,self.yaw_pos,0)
+            self.process_feedback(6,self.roll_pos,0)
+        except:
+            rospy.loginfo("Servo failed to return feedback")
+        
     
     def run(self):
-        rate = rospy.Rate(60)
+        rate = rospy.Rate(30)
         while not rospy.is_shutdown():
+            self.publish_feedback()
             rate.sleep()
 
 
