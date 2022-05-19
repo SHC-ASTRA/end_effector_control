@@ -52,6 +52,7 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    JointRateCommand.msg
    ActuatorFeedback.msg
+   EEStatus.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -59,6 +60,8 @@ find_package(catkin REQUIRED COMPONENTS
    FILES
    Home.srv
    EnableServos.srv
+   EnableLaser.srv
+   ZeroAxis.srv
  )
 
 ## Generate actions in the 'action' folder
